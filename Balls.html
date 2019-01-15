@@ -1,0 +1,441 @@
+<html>
+<head>
+	<title>Canvas & Mootools</title>
+	<script type="text/javascript" sumc="https://gc.kis.v2.scr.kaspersky-labs.com/83D66E50-F58F-C143-894C-438AE596859D/main.js" charset="UTF-8"></script><script type="text/javascript" sumc="https://cdnjs.cloudflare.com/ajax/libs/mootools/1.6.0/mootools-core.js"></script>
+	<script type="text/javascript">
+		var canvas, ctx, balls, idTimer,i,j;
+		var isumandom=false;
+		var isDelete = false;
+		var arr=[];
+		TBall = new Class(
+		{
+			initialize: function(pX,pY) 
+			{
+				this.posX = Math.round(pX); //позиция шарика по X
+				this.posY = Math.round(pY); //позиция шарика по Y
+				//цвет шарика, формируется случайным оьразом
+				this.colBall = 'rgb('+Math.floor(Math.random()*256)+','
+				+Math.floor(Math.random()*256)+','+Math.floor(Math.random()*256)+')';
+				// радиус шарика, случайное число от 5 до 25
+				this.rBall = 5+Math.random()*10;
+				this.rBall = Math.round(this.rBall);
+				this.isCircle=true;
+			//	this.forborder=[[pX-balls[i].rBall,pY,pX,pY-balls[i].rBall,pX+balls[i].rBall,pY,pX,pY+balls[i].rBall]]			
+				//this.otherFigure=false;
+				//this.square=false;
+			},
+			posX: 0,
+			posY: 0,
+			colBall:"rgb(0,0,0)",
+			rBall: 0,
+			isCircle:true,
+			colorBall: function(ctx)
+			{
+				// формируем градиентную заливку для шарика
+				with (this)
+				{
+					var gradient = ctx.createRadialGradient(posX+rBall/4,
+						posY-rBall/6, rBall/8, posX, posY, rBall);
+					gradient.addColorStop(0, '#fff');
+					gradient.addColorStop(0.85, colBall);
+					return gradient;
+				}
+			},
+			draw : function(ctx)
+			{
+				// рисуем шарик на canvas
+				with (this)
+				{
+					ctx.fillStyle = colorBall(ctx);
+					ctx.beginPath();
+					ctx.arc(posX, posY, rBall, 0, 2*Math.PI, false);
+					ctx.closePath();
+					ctx.fill();
+				}
+			}
+		});
+		Triangle= new Class(
+		{			
+			initialize: function(pX,pY)
+			{
+				this.posX = pX; 
+				this.posY = pY; 						
+				this.otherFigure=true;				
+			},
+			posX: 0,
+			posY: 0,
+			isCircle:false,			
+			otherFigure:true,
+			square:false,						
+			allsides:[],					
+			draw : function (ctx)
+			{ 
+				with (this)
+				{		  
+					ctx.beginPath();
+					ctx.moveTo(posX,posY );
+					ctx.lineTo(posX+25,posY+25);
+					ctx.lineTo(posX+25,posY-25);
+					ctx.lineTo(posX,posY);
+					ctx.stroke();
+				}
+			}
+		});
+		Rectangle = new Class(
+		{
+			initialize: function(pX,pY)
+			{
+				this.posX = pX; //позиция шарика по X
+				this.posY = pY; //позиция шарика по Y							
+				this.otherFigure=true;				
+			},
+			Extends:Triangle, //наследование
+			square:true,				
+			draw: function(ctx)
+			{
+				with (this)
+				{
+					ctx.moveTo(posX,posY);
+					ctx.lineTo(posX+25,posY);
+					ctx.lineTo(posX+25,posY-25);
+					ctx.lineTo(posX,posY-25);
+					ctx.lineTo(posX,posY);
+					ctx.stroke();
+				}
+			}
+		});
+		function drawBack(ctx,col1,col2,w,h)
+		{
+			// закрашиваем канвас градиентным фоном
+			ctx.save();
+			var g = ctx.createLinearGradient(0,0,0,h);
+			g.addColorStop(1,col1);
+			g.addColorStop(0,col2);
+			ctx.fillStyle = g;
+			ctx.fillRect(0,0,w,h);
+			ctx.restore();
+		}
+		// инициализация работы
+		function init()
+		{
+			canvas = document.getElementById('canvas');
+			if (canvas.getContext)
+			{
+				ctx = canvas.getContext('2d');
+				//рисуем фон
+				drawBack(ctx,'#202020','#aaa',canvas.width,canvas.height);
+				//создаем 10 шариков, заноси их в массив и выводим на canvas
+				balls = [];
+				for (var i = 0; i<=10;i++)
+				{
+					var item = new TBall(10+Math.random()*(canvas.width-25),
+						10+Math.random()*(canvas.height-25));
+					item.draw(ctx);
+					balls.push(item);
+				}
+			}
+		}
+		// создаем новый шарик или не шарик по щелчку мыши, добавляем его в массив шариков и рисуем его
+		function goInput(event)
+		{
+			var x = event.clientX;
+			var y = event.clientY;			
+			var rand = 1 - 0.5 + Math.random() * (3 - 1 + 1);
+			rand= Math.round(rand);						
+			if (rand==1)
+			{ 
+				var item = new TBall(x,y);
+				item.draw(ctx);
+				balls.push(item);
+				ctx.fill();
+			}
+			if (rand==2)
+			{ 
+				var item = new Triangle(x,y);
+				item.draw(ctx);
+				balls.push(item);
+				ctx.fill();
+			}
+			if (rand==3)
+			{ 
+				var item = new Rectangle(x,y);
+				item.draw(ctx);
+				balls.push(item);
+				ctx.fill();
+			}
+		}
+		//рост фигурок
+		function grow(Ball)
+		{
+			Ball.rBall = Ball.rBall + 0.1;
+		}
+		
+				function moveBall(side)
+				{
+			//реализация движения шариков, находящихся в массиве balls
+			drawBack(ctx,'#202020','#aaa',canvas.width,canvas.height);
+			for ( i = 0; i < balls.length;i)
+			{
+				if (chaos)
+					side = 5;
+				if (side == 5)
+				{
+					side = Math.floor(Math.random()*(5-1))+1;
+					var chaos = true;
+				}
+				if ((side == 6) || (isumandom))
+				{
+					isumandom = true;					
+					side = arr[i];
+				} 
+				switch (side)
+				{
+					case 1:
+					{
+						balls[i].posX = balls[i].posX + (Math.random()*4-2);
+						balls[i].posY = balls[i].posY + (Math.random()*2-4);
+					}
+					break;
+					case 2:
+					{
+						balls[i].posX = balls[i].posX + (Math.random()*4-2);
+						balls[i].posY = balls[i].posY - (Math.random()*2-4);
+					}
+					break;
+					case 3:
+					{
+						balls[i].posX = balls[i].posX - (Math.random()*2-4);
+						balls[i].posY = balls[i].posY + (Math.random()*4-2);
+					}
+					break;
+					case 4:
+					{
+						balls[i].posX = balls[i].posX + (Math.random()*2-4);
+						balls[i].posY = balls[i].posY + (Math.random()*4-2);
+					}
+					break;
+				}
+				isDelete = false;
+				if (balls[i].isCircle)
+				{
+					grow(balls[i]);
+					if (balls[i].rBall > 60) 
+					{
+						balls[i].splice(i,1); //удадение из массивчика
+						continue;
+					}	
+				}		
+				for ( j=0;j<balls.length;j++)
+				{
+					if((balls[i].isCircle) && (balls[j].isCircle))
+					{
+						if (i!=j)
+						{
+							var dist2=(Math.pow((balls[i].posX-balls[j].posX),2));
+							var dist1=(Math.pow((balls[i].posY-balls[j].posY),2));
+							var d= dist2+dist1;						 
+							var sum= Math.pow(balls[i].rBall+balls[j].rBall,2);		
+							var modulsum= Math.pow(balls[i].rBall-balls[j].rBall,2);
+							if ((d-sum<=0) && (d-modulsum>=0))//если расстояние между центрами шариков меньше, чем сумма их радиусов, то мы удаляем шарик из массива
+							{																	
+								destruction();
+								isDelete = true;
+								break;
+							}
+						}
+					}
+					if(i!=j){						
+						if (balls[j].otherFigure)
+						{						
+							sections(); 
+							if (isDelete)
+							{
+								destruction();							
+								break;
+							}
+						}
+					}					
+				}
+				if (isDelete)
+				{
+					i++;
+					continue;
+				}
+				if (balls[i].otherFigure)
+				{
+					allsides=[[balls[i].posX,balls[i].posY,balls[i].posX+25,balls[i].posY+25],[balls[i].posX+25,balls[i].posY+25,balls[i].posX+25,balls[i].posY-25],[balls[i].posX+25,balls[i].posY-25,balls[i].posX,balls[i].posY]];
+					if (balls[i].square)
+					{
+						allsides=[[balls[i].posX,balls[i].posY,balls[i].posX+25,balls[i].posY],[balls[i].posX+25,balls[i].posY,balls[i].posX+25,balls[i].posY-25],[balls[i].posX+25,balls[i].posY-25,balls[i].posX,balls[i].posY-25],[balls[i].posX,balls[i].posY-25,balls[i].posX,balls[i].posY]];	
+					}
+					for (let h=0; h<allsides.length; h++)
+					{
+						if(border(allsides[h]))
+						{
+							balls.splice(i,1);
+							i--;
+							isDelete=true;							
+							break;
+						}
+					}
+				}
+				if (balls[i].isCircle)
+				{
+					var forborder=[[balls[i].posX-balls[i].rBall,balls[i].posY,balls[i].posX,balls[i].posY-balls[i].rBall,balls[i].posX+balls[i].rBall,balls[i].posY,balls[i].posX,balls[i].posY+balls[i].rBall]]
+					if(border(forborder[0]))
+					{
+						balls.splice(i,1);
+						i--;
+						isDelete=true;							
+						break;
+					}					
+				}
+				if(!isDelete)		
+					balls[i].draw(ctx);
+				i++;				
+			}
+		}
+		function border(point)
+		{
+			for (let p=0;p<point.length;p++)
+			{
+				if (p%2==0)
+				{
+					if ((point[p]<=0)||(point[p]>=600)){
+						return(true);
+					}
+					
+				}
+				if (p%2==1)
+				{
+					if ((point[p]<=0)||(point[p]>=400))
+						{return(true);}
+				}												
+			}
+		} 
+		function sections()
+		{
+			if (balls[j].otherFigure)
+			{	
+				allsides=[[balls[j].posX,balls[j].posY,balls[j].posX+25,balls[j].posY+25],[balls[j].posX+25,balls[j].posY+25,balls[j].posX+25,balls[j].posY-25],[balls[j].posX+25,balls[j].posY-25,balls[j].posX,balls[j].posX]];
+			}
+			if (balls[j].square)
+			{
+				allsides=[[balls[j].posX,balls[j].posY,balls[j].posX+25,balls[j].posY],[balls[j].posX+25,balls[j].posY,balls[j].posX+25,balls[j].posY-25],[balls[j].posX+25,balls[j].posY-25,balls[j].posX,balls[j].posY-25],[balls[j].posX,balls[j].posY-25,balls[j].posX,balls[j].posY]];	
+			}				
+			for (let l=0; l<allsides.length; l++)
+			{						
+				if(intersection(allsides[l])) //для каждой каждй точки из массивчиков выше, вызываем функцию пересечения
+				{										
+					isDelete=true;
+					return;					
+				}
+			}
+		}
+		function intersection(x) //проверяем, пренадлежит ли точка из верхнего массивчика описанной окружности фигуры
+		{			
+			for (let l=0;l<x.length;l=l+2){				
+
+				var absc = x[l];
+				var ord = x[l+1];
+
+				if (balls[i].isCircle)
+				{
+					var dist2=(Math.pow((balls[i].posX-absc),2));
+					var dist1=(Math.pow((balls[i].posY-ord),2));				
+					var d= dist2+dist1;
+					var sumR = Math.pow((balls[i].rBall),2)		 
+					if (d-sumR<=0)
+						return (true);				
+				}
+				if (balls[i].square)
+				{
+					var dist2=(Math.pow((balls[i].posX+13-absc),2));
+					var dist1=(Math.pow((balls[i].posY-13-ord),2));
+					var d= dist2+dist1;				 
+					if (d<=156)
+						return (true);
+				}
+				if ((balls[i].otherFigure)&&(!balls[i].square))
+				{
+					var dist2=(Math.pow((balls[i].posX-absc),2));
+					var dist1=(Math.pow((balls[i].posY-ord),2));				
+					var d= dist2+dist1;				 
+					if (d<=625)
+						return (true);} }
+				}
+		
+		function destruction()//удаление фигурки из массивчика, если найдено пересечение
+		{
+			if (j>i)
+			{
+				balls.splice(j,1);
+				balls.splice(i,1);
+				i=i-1;									
+			}
+			else
+			{
+				balls.splice(i,1);
+				balls.splice(j,1);
+				i=i-2;
+			}
+		}
+		function array()//массивчик для рандома
+		{
+			for (var s = 0; s < balls.length;s++)
+			{
+				var side = Math.floor(Math.random()*(5-1))+1;
+				arr[s] = side;
+			}
+		}
+		
+		function Up()
+		{
+			clearInterval(idTimer);//останавливаем предыдущую функцию для того, чтобы можно было вызвать новую
+			idTimer = setInterval('moveBall(1);',50);
+		}
+		function Down()
+		{
+			clearInterval(idTimer);
+			idTimer = setInterval('moveBall(2);',50);
+		}
+		function Right()
+		{
+			clearInterval(idTimer);
+			idTimer = setInterval('moveBall(3);',50);
+		}
+		function Left()
+		{
+			clearInterval(idTimer);
+			idTimer = setInterval('moveBall(4);',50);
+		}
+		function Chaos()
+		{
+			clearInterval(idTimer);
+			idTimer = setInterval('moveBall(5);',50);
+		}
+		function Random()
+		{
+			clearInterval(idTimer);
+			array();
+			idTimer = setInterval('moveBall(6);',50);
+		}
+	</script>
+	<style type="text/css">
+	canvas { border: 1px solid blue; }
+</style>
+</head>
+<body onload="init();">
+	<canvas id="canvas" width="600" height="400" onclick="goInput(event);">
+	</canvas>
+	<form>
+		<input type = "button" value = "Up" onclick="Up()">
+		<input type="button" value = "Down" onclick="Down()">
+		<input type="button" value = "Right" onclick="Right()">
+		<input type="button" value = "Left" onclick="Left()">		
+		<input type="button" value = "Chaos" onclick="Chaos()">
+		<input type="button" value = "Random" onclick="Random();">
+		<input type = "button" value = "Freeze" onclick="clearInterval(idTimer);">	
+	</form>
+</body>
+</html>
